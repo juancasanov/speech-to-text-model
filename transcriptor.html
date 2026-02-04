@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper Transcriptor</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&family=Space+Mono:wght@400;700&display=swap');
+        
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #141b3d;
+            --accent: #00ff9d;
+            --accent-dim: #00cc7d;
+            --text: #e8f4f8;
+            --text-dim: #8ba3b8;
+            --danger: #ff4d6d;
+            --warning: #ffb627;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(0, 255, 157, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 182, 39, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+        
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--warning) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+        
+        .main-card {
+            background: var(--bg-secondary);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.8s ease-out 0.2s backwards;
+        }
+        
+        .main-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--warning));
+        }
+        
+        .upload-zone {
+            border: 2px dashed rgba(0, 255, 157, 0.3);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 255, 157, 0.02);
+            margin-bottom: 2rem;
+        }
+        
+        .upload-zone:hover {
+            border-color: var(--accent);
+            background: rgba(0, 255, 157, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        .upload-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(0, 255, 157, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .upload-text {
+            font-size: 1.1rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        
+        .upload-hint {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 200px;
+            padding: 1rem 2rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        button:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-dim);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 255, 157, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e63950;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 77, 109, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .status {
+            padding: 1.5rem;
+            background: rgba(0, 255, 157, 0.05);
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: none;
+            animation: slideInRight 0.4s ease;
+        }
+        
+        .status.show {
+            display: block;
+        }
+        
+        .status.loading {
+            background: rgba(255, 182, 39, 0.05);
+            border-left-color: var(--warning);
+        }
+        
+        .status-text {
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        
+        .progress-container {
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .progress-container.show {
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--warning));
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        
+        .result-section {
+            display: none;
+            animation: fadeInUp 0.6s ease;
+        }
+        
+        .result-section.show {
+            display: block;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        
+        .copy-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            min-width: auto;
+        }
+        
+        .transcription {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            font-size: 1rem;
+            line-height: 1.8;
+            color: var(--text);
+            min-height: 150px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .transcription::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .transcription::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        
+        .transcription::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 4px;
+        }
+        
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: rgba(255, 77, 109, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid var(--danger);
+        }
+        
+        .recording-indicator.show {
+            display: flex;
+        }
+        
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--danger);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        .audio-preview {
+            display: none;
+            margin-top: 1rem;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .audio-preview.show {
+            display: block;
+        }
+        
+        .audio-preview audio {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        
+        .audio-info {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .container {
+                padding: 2rem 1rem;
+            }
+            
+            .main-card {
+                padding: 2rem 1.5rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            button {
+                min-width: 100%;
+            }
+            
+            h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎙️ Whisper AI</h1>
+            <p class="subtitle">Transcripción de voz a texto con inteligencia artificial</p>
+        </header>
+        
+        <div class="main-card">
+            <div class="upload-zone" id="uploadZone">
+                <span class="upload-icon">📁</span>
+                <div class="upload-text">Arrastra tu archivo de audio aquí</div>
+                <div class="upload-hint">o haz clic para seleccionar (mp3, wav, m4a, ogg, webm)</div>
+                <input type="file" id="fileInput" accept="audio/*">
+            </div>
+            
+            <div class="recording-indicator" id="recordingIndicator">
+                <span class="recording-dot"></span>
+                <span>Grabando...</span>
+            </div>
+            
+            <div class="audio-preview" id="audioPreview">
+                <div class="audio-info" id="audioInfo"></div>
+                <audio controls id="audioPlayer"></audio>
+            </div>
+            
+            <div class="controls">
+                <button class="btn-secondary" id="recordBtn">
+                    🎤 Grabar Audio
+                </button>
+                <button class="btn-primary" id="transcribeBtn" disabled>
+                    ✨ Transcribir
+                </button>
+            </div>
+            
+            <div class="status" id="status">
+                <div class="status-text" id="statusText"></div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="result-section" id="resultSection">
+                <div class="result-header">
+                    <h2>📝 Transcripción</h2>
+                    <button class="btn-secondary copy-btn" id="copyBtn">
+                        📋 Copiar
+                    </button>
+                </div>
+                <div class="transcription" id="transcription"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { pipeline, read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+
+        let audioFile = null;
+        let audioBlob = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let transcriber = null;
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadZone = document.getElementById('uploadZone');
+        const recordBtn = document.getElementById('recordBtn');
+        const transcribeBtn = document.getElementById('transcribeBtn');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const resultSection = document.getElementById('resultSection');
+        const transcription = document.getElementById('transcription');
+        const copyBtn = document.getElementById('copyBtn');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const audioPreview = document.getElementById('audioPreview');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const audioInfo = document.getElementById('audioInfo');
+
+        // Upload zone handlers
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('audio/')) {
+                showStatus('❌ Por favor selecciona un archivo de audio válido', false);
+                return;
+            }
+            
+            audioFile = file;
+            audioBlob = null;
+            transcribeBtn.disabled = false;
+            resultSection.classList.remove('show');
+            
+            // Show audio preview
+            const url = URL.createObjectURL(file);
+            audioPlayer.src = url;
+            audioInfo.textContent = `Archivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            audioPreview.classList.add('show');
+            
+            showStatus(`✅ Audio cargado: ${file.name}`, false);
+        }
+
+        // Recording functionality
+        recordBtn.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.addEventListener('dataavailable', (event) => {
+                    audioChunks.push(event.data);
+                });
+                
+                mediaRecorder.addEventListener('stop', () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioFile = null;
+                    transcribeBtn.disabled = false;
+                    resultSection.classList.remove('show');
+                    
+                    // Show audio preview
+                    const url = URL.createObjectURL(audioBlob);
+                    audioPlayer.src = url;
+                    audioInfo.textContent = `Grabación (${(audioBlob.size / 1024).toFixed(2)} KB)`;
+                    audioPreview.classList.add('show');
+                    
+                    showStatus('✅ Grabación completada', false);
+                    stream.getTracks().forEach(track => track.stop());
+                });
+                
+                mediaRecorder.start();
+                recordBtn.textContent = '⏹️ Detener';
+                recordBtn.classList.remove('btn-secondary');
+                recordBtn.classList.add('btn-danger');
+                recordingIndicator.classList.add('show');
+                showStatus('🎤 Grabando audio...', true);
+                
+            } catch (error) {
+                showStatus('❌ Error al acceder al micrófono: ' + error.message, false);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                recordBtn.textContent = '🎤 Grabar Audio';
+                recordBtn.classList.remove('btn-danger');
+                recordBtn.classList.add('btn-secondary');
+                recordingIndicator.classList.remove('show');
+            }
+        }
+
+        // Transcription
+        transcribeBtn.addEventListener('click', async () => {
+            if (!audioFile && !audioBlob) {
+                showStatus('❌ Por favor selecciona o graba un audio primero', false);
+                return;
+            }
+
+            transcribeBtn.disabled = true;
+            resultSection.classList.remove('show');
+            showStatus('⏳ Cargando modelo Whisper...', true);
+            progressContainer.classList.add('show');
+            
+            try {
+                // Load the model
+                if (!transcriber) {
+                    updateProgress(20);
+                    transcriber = await pipeline(
+                        'automatic-speech-recognition',
+                        'Xenova/whisper-small',
+                        {
+                            progress_callback: (progress) => {
+                                if (progress.status === 'downloading') {
+                                    const percent = Math.round(progress.progress);
+                                    updateProgress(20 + (percent * 0.5));
+                                }
+                            }
+                        }
+                    );
+                }
+                
+                updateProgress(80);
+                showStatus('🎯 Transcribiendo audio...', true);
+                
+                // Read and process audio file
+                let audioUrl;
+                if (audioFile) {
+                    audioUrl = URL.createObjectURL(audioFile);
+                } else {
+                    audioUrl = URL.createObjectURL(audioBlob);
+                }
+                
+                // Use read_audio to get properly formatted audio data
+                const audioData = await read_audio(audioUrl, 16000);
+                
+                updateProgress(90);
+                
+                // Transcribe
+                const result = await transcriber(audioData, {
+                    language: 'spanish',
+                    task: 'transcribe'
+                });
+                
+                // Clean up URL
+                URL.revokeObjectURL(audioUrl);
+                
+                updateProgress(100);
+                
+                // Show result
+                transcription.textContent = result.text;
+                resultSection.classList.add('show');
+                showStatus('✅ Transcripción completada', false);
+                progressContainer.classList.remove('show');
+                
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, false);
+                console.error(error);
+            } finally {
+                transcribeBtn.disabled = false;
+                updateProgress(0);
+            }
+        });
+
+        function showStatus(message, loading = false) {
+            statusText.textContent = message;
+            status.classList.add('show');
+            if (loading) {
+                status.classList.add('loading');
+            } else {
+                status.classList.remove('loading');
+            }
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = percent + '%';
+        }
+
+        // Copy to clipboard
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(transcription.textContent);
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅ Copiado';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            } catch (error) {
+                showStatus('❌ Error al copiar: ' + error.message, false);
+            }
+        });
+    </script>
+</body>
+</html>
